@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d172a">
+  <meta name="color-scheme" content="light">
+  <title>Маршрут — задачи водителей</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="apiSetup" class="login-screen hidden">
+    <div class="login-card">
+      <div class="brand-mark big">↗</div>
+      <div class="eyebrow">ПЕРВЫЙ ЗАПУСК</div>
+      <h1>Подключение</h1>
+      <p>Введите адрес опубликованного Google Apps Script. Он сохранится на этом телефоне — повторно вводить его не придётся.</p>
+      <form id="apiSetupForm" class="form-stack">
+        <label>Ссылка на API Google Apps Script<input id="apiUrl" type="url" required autocapitalize="none" autocomplete="url" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec"></label>
+        <button id="apiSave" class="btn primary full" type="submit">Подключить сервер</button>
+        <button id="apiCancel" class="btn light full hidden" type="button">Вернуться в приложение</button>
+        <p id="apiFeedback" class="api-feedback" role="status" aria-live="polite"></p>
+      </form>
+      <div class="login-hint">Доступ к задачам определяется ID сотрудника. Настройку сервера можно изменить позднее через профиль.</div>
+    </div>
+  </div>
+  <div id="login" class="login-screen">
+    <div class="login-card">
+      <div class="brand-mark big">↗</div>
+      <div class="eyebrow">УПРАВЛЕНИЕ ПЕРЕВОЗКАМИ</div>
+      <h1>Маршрут</h1>
+      <p>Задачи водителей — в одном месте. Без лишних звонков и сообщений.</p>
+      <form id="loginForm" class="form-stack">
+        <label>ID сотрудника <input id="loginId" name="employeeId" autocomplete="username" inputmode="text" maxlength="40" required placeholder="Например, 1001"></label>
+        <label>PIN-код <span class="optional">(если назначен)</span><input id="loginPin" name="pin" type="password" autocomplete="current-password" placeholder="Введите PIN-код"></label>
+        <button class="btn primary full" type="submit" id="loginButton">Войти в приложение <span>→</span></button>
+      </form>
+      <div class="login-hint">Вход сохраняется на этом устройстве. После первого успешного входа приложение сможет открываться и без интернета.</div>
+    </div>
+  </div>
+
+  <div id="shell" class="shell hidden">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">↗</div><div><strong>Маршрут</strong><small>DriverFlow</small></div></div>
+      <div class="menu" id="sideNav"></div>
+      <div class="sidebar-footer"><button class="avatar" id="sideAvatar" type="button" data-action="profile" aria-label="Профиль сотрудника">?</button><div class="identity"><strong id="sideName"></strong><small id="sideRole"></small></div><button class="icon-button" data-action="logout" title="Выйти">⇥</button></div>
+    </aside>
+    <div class="main-area">
+      <header class="topbar">
+        <div class="mobile-brand"><div class="brand-mark">↗</div><strong>Маршрут</strong></div>
+        <div class="top-context" id="topContext">Задачи</div>
+        <div class="top-actions"><span id="netStatus" class="net-status"><span class="net-dot"></span> Синхронизация</span><button class="icon-button sync-button" data-action="sync" title="Обновить">↻</button><button class="avatar mobile-avatar" id="topAvatar" data-action="profile">?</button></div>
+      </header>
+      <main class="content">
+        <div id="offlineBanner" class="offline-banner hidden">Нет сети. Можно смотреть сохранённые задачи и отмечать выполнение: изменения будут отправлены позже.</div>
+        <div id="page"></div>
+      </main>
+    </div>
+    <nav class="bottom-nav" id="bottomNav"></nav>
+  </div>
+  <div id="overlay" class="overlay hidden" aria-hidden="true"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+  <div id="actionLoading" class="action-loading hidden" role="status" aria-live="polite" aria-hidden="true">
+    <div class="action-loading-card">
+      <div class="action-loader" aria-hidden="true"><span></span><span></span><span></span></div>
+      <strong id="loadingTitle">Выполняем действие…</strong>
+      <p>Данные сохраняются в Google Таблице. Не нажимайте повторно.</p>
+    </div>
+  </div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script src="./transport.js"></script>
+  <script src="./firebase-config.js"></script>
+  <script src="./push.js"></script>
+  <script src="./client.js"></script>
+</body>
+</html>
