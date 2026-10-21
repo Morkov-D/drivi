@@ -26,6 +26,26 @@ const priorityClass = p => ({'Срочно':'urgent','Средний':'medium','
 const statusText = s => ({NEW:'Свободна',ASSIGNED:'Назначена',IN_PROGRESS:'В работе',DONE:'Завершена',CANCELLED:'Отменена'}[s] || s);
 const fmtDate = iso => iso ? new Date(iso).toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
 const fmtFullDate = iso => iso ? new Date(iso).toLocaleString('ru-RU') : '—';
+// Используем календарный день по часовому поясу диспетчерской, а не UTC или телефона.
+function dfMoscowDate(value){
+  const date=value instanceof Date?value:new Date(value);
+  if(!Number.isFinite(date.getTime()))return '';
+  const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
+  const p={};parts.forEach(part=>{if(part.type!=='literal')p[part.type]=part.value});
+  return p.year+'-'+p.month+'-'+p.day;
+}
+function dfPlannedDate(task){
+  const date=String(task.plannedDate||'');
+  return /^\d{4}-\d{2}-\d{2}$/.test(date)?date:(dfMoscowDate(task.createdAt)||dfMoscowDate(new Date()));
+}
+function dfPlanLabel(task){
+  const [year,month,day]=dfPlannedDate(task).split('-');
+  return day+'.'+month+'.'+year;
+}
+function dfIsVisibleToDriver(task){
+  return isManager()||dfPlannedDate(task)<=dfMoscowDate(new Date());
+}
+
 const elapsed = iso => {
   if (!iso) return '—';
   const min = Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000));
@@ -325,7 +345,7 @@ function heading(title,subtitle,action=''){
 }
 function addButton(){return isManager()?'<button class="btn primary" data-action="create-task">＋ Новая задача</button>':''}
 function visibleTaskPool(){
-  return state.tasks.filter(t=>!['DONE','CANCELLED'].includes(t.status) && (state.page!=='mine'||isMine(t)));
+  return state.tasks.filter(t=>!['DONE','CANCELLED'].includes(t.status) && dfIsVisibleToDriver(t) && (state.page!=='mine'||isMine(t)));
 }
 function taskCounters(){
   const all=visibleTaskPool();
@@ -441,6 +461,7 @@ function card(t){
       ${routeMarkup(t,true)}
       <span class="task-description">${escapeHtml(t.details)}</span>
     </button>
+    <div class="task-schedule"><span class="task-plan-date">📅 План: ${dfPlanLabel(t)}</span><span>Создал: <b>${escapeHtml(t.createdBy||'Не указан')}</b></span></div>
     <div class="task-tags">${volume}${poa}</div>${reason}
     <div class="task-footer"><span class="age-indicator ${ageLevel(t.createdAt)}" data-created="${escapeHtml(t.createdAt)}" data-age-indicator="true"><span class="age-dot"></span><span class="age-copy">${elapsed(t.createdAt)}</span></span>
       <span class="status-tag ${t.status==='IN_PROGRESS'?'work':''}">${mine&&t.status==='IN_PROGRESS'?'● ':''}${escapeHtml(status)}</span></div>
@@ -461,8 +482,8 @@ function taskSections(){
 }
 function renderTasksPage(){
   const mine=state.page==='mine';
-  const totalActive=state.tasks.filter(t=>!['DONE','CANCELLED'].includes(t.status)).length;
-  const myCount=state.tasks.filter(t=>isMine(t)&&!['DONE','CANCELLED'].includes(t.status)).length;
+  const totalActive=visibleTaskPool().length;
+  const myCount=visibleTaskPool().filter(isMine).length;
   const title=mine?'Мои задачи':isManager()?'Все задачи':'Активные задачи';
   const subtitle=mine?`${myCount} задач · только назначенные вам`:`${totalActive} активных · ${state.lastSync?('обновлено '+fmtDate(state.lastSync)):'загружаем данные'}`;
   return heading(title,subtitle,addButton())+
@@ -527,7 +548,7 @@ function renderHistory(){
     <label style="grid-column:span 2">Поиск<input name="search" value="${escapeHtml(f.search)}" placeholder="Номер, адрес, описание"></label>
     </div><div class="inline-form" style="justify-content:flex-end"><button class="btn secondary" type="submit">Применить фильтры</button><button class="btn primary" type="button" data-action="export">↓ Скачать CSV</button></div></form>`;
   return heading('История задач','Отчёты, фильтры и выгрузка за выбранный период')+
-    `<section class="panel">${fields}</section><section class="panel"><h3>Результаты · ${state.historyTotal}</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>Номер</th><th>Город</th><th>Откуда</th><th>Куда</th><th>Тип</th><th>Статус</th><th>Водитель</th><th>Создана</th><th>Завершена</th></tr></thead><tbody>${state.historyRows.length?state.historyRows.map(t=>`<tr><td>${escapeHtml(t.number)}</td><td>${escapeHtml(t.city)}</td><td class="wrap-cell">${escapeHtml(taskRoute(t).from||'—')}</td><td class="wrap-cell">${escapeHtml(taskRoute(t).to||'—')}</td><td>${escapeHtml(t.type)}</td><td>${escapeHtml(statusText(t.status))}</td><td>${escapeHtml(t.driverName||'—')}</td><td>${escapeHtml(fmtFullDate(t.createdAt))}</td><td>${escapeHtml(fmtFullDate(t.finishedAt))}</td></tr>`).join(''):'<tr><td colspan="9" style="text-align:center;padding:35px;color:#8995a5">Нет строк. Нажмите «Применить фильтры».</td></tr>'}</tbody></table></div>
+    `<section class="panel">${fields}</section><section class="panel"><h3>Результаты · ${state.historyTotal}</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>Номер</th><th>Город</th><th>Откуда</th><th>Куда</th><th>Тип</th><th>Статус</th><th>Водитель</th><th>Плановая дата</th><th>Кто создал</th><th>Создана</th><th>Завершена</th></tr></thead><tbody>${state.historyRows.length?state.historyRows.map(t=>`<tr><td>${escapeHtml(t.number)}</td><td>${escapeHtml(t.city)}</td><td class="wrap-cell">${escapeHtml(taskRoute(t).from||'—')}</td><td class="wrap-cell">${escapeHtml(taskRoute(t).to||'—')}</td><td>${escapeHtml(t.type)}</td><td>${escapeHtml(statusText(t.status))}</td><td>${escapeHtml(t.driverName||'—')}</td><td>${escapeHtml(dfPlanLabel(t))}</td><td>${escapeHtml(t.createdBy||'—')}</td><td>${escapeHtml(fmtFullDate(t.createdAt))}</td><td>${escapeHtml(fmtFullDate(t.finishedAt))}</td></tr>`).join(''):'<tr><td colspan="11" style="text-align:center;padding:35px;color:#8995a5">Нет строк. Нажмите «Применить фильтры».</td></tr>'}</tbody></table></div>
     <div class="pager"><span>Страница ${state.historyPage} из ${Math.max(1,Math.ceil(state.historyTotal/60))}</span><div><button class="btn small light" data-action="history-page" data-page="${state.historyPage-1}" ${state.historyPage<=1?'disabled':''}>← Назад</button> <button class="btn small light" data-action="history-page" data-page="${state.historyPage+1}" ${state.historyPage*60>=state.historyTotal?'disabled':''}>Вперёд →</button></div></div></section>`;
 }
 function renderSettings(){
@@ -573,6 +594,7 @@ function renderCreateModal(existing=null){
    <label>Тип задачи *${filterSelect('type',t.type||'Забрать',[['Забрать','Забрать'],['Отвезти','Отвезти']])}</label>
    <label>Важность *${filterSelect('priority',t.priority||'Обычный',[['Обычный','Обычный'],['Средний','Средний'],['Срочно','Срочно']])}</label>
    <label>Город *${filterSelect('city',t.city||'',state.cities.map(c=>[c,c]))}</label>
+   <label>Плановая дата исполнения *<input name="plannedDate" type="date" required value="${escapeHtml(existing?dfPlannedDate(t):dfMoscowDate(new Date()))}"></label>
    ${existing?'':`<label>Водитель <span class="optional">(необязательно)</span>${filterSelect('driverId','',[['','Не назначать'],...drivers.map(s=>[s.employeeId,s.name])])}</label>`}
    <div class="route-form-section wide"><div class="route-form-heading"><span>⌖</span><div><strong>Маршрут</strong><small>Укажите точку отправления и назначения</small></div></div>
      <label class="route-form-field">Адрес откуда *<input name="fromAddress" required maxlength="350" enterkeyhint="next" autocomplete="street-address" placeholder="Откуда забрать или выехать" value="${escapeHtml(taskRoute(t).from)}"></label>
@@ -610,6 +632,7 @@ function taskDetail(id){
     ${routeMarkup(t)}${map}${releaseHint}${reasonHint}
     <h3 style="font-size:13px;margin:24px 0 6px">Что нужно сделать</h3><div class="detail-text">${escapeHtml(t.details)}</div>
     <div class="detail-grid">${detailField('Создана',fmtFullDate(t.createdAt))}${detailField('Прошло времени',elapsed(t.createdAt))}
+    ${detailField('Плановая дата',dfPlanLabel(t))}${detailField('Создал задачу',t.createdBy||'Не указан')}
     ${detailField('Объём',t.volume||'Не указан')}${detailField('Доверенность',t.powerOfAttorney||'Не требуется')}
     ${detailField('Водитель',t.driverName||'Не назначен')}${detailField('Взята в работу',fmtFullDate(t.startedAt))}
     ${detailField('Назначена',fmtFullDate(t.assignedAt))}${t.finishedAt?detailField('Закрыта',fmtFullDate(t.finishedAt)):detailField('Статус',statusText(t.status))}</div>
@@ -757,10 +780,10 @@ async function exportHistory(){
     const data=await callApi('apiHistory',state.token,state.historyFilters,1,true);
     const columns=[['number','Номер'],['type','Тип'],['city','Город'],['fromAddress','Откуда'],['toAddress','Куда'],['mapUrl','Ссылка на карты'],
       ['details','Информация'],['volume','Объём'],['powerOfAttorney','Доверенность'],['priority','Важность'],
-      ['status','Статус'],['driverId','ID водителя'],['driverName','Водитель'],['createdAt','Создана'],
+      ['status','Статус'],['driverId','ID водителя'],['driverName','Водитель'],['plannedDate','Плановая дата'],['createdAt','Создана'],
       ['assignedAt','Назначена'],['startedAt','В работе с'],['finishedAt','Закрыта'],
       ['createdBy','Создал'],['lastReason','Причина']];
-    const csv='\ufeff'+[columns.map(x=>csvSafe(x[1])).join(';'),...data.rows.map(t=>columns.map(([key])=>csvSafe(key==='fromAddress'||key==='toAddress'?taskRoute(t)[key==='fromAddress'?'from':'to']:t[key])).join(';'))].join('\r\n');
+    const csv='\ufeff'+[columns.map(x=>csvSafe(x[1])).join(';'),...data.rows.map(t=>columns.map(([key])=>csvSafe(key==='fromAddress'||key==='toAddress'?taskRoute(t)[key==='fromAddress'?'from':'to']:key==='plannedDate'?dfPlannedDate(t):t[key])).join(';'))].join('\r\n');
     const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download='driverflow_'+state.historyFilters.from+'_'+state.historyFilters.to+'.csv';
     document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
