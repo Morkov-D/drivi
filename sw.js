@@ -1,5 +1,5 @@
 /* DriverFlow offline-first application shell. Never cache Google Apps Script responses. */
-const CACHE='driverflow-shell-2026-10-v2.2-planned-date';
+const CACHE='driverflow-shell-2026-10-v2.3-refresh';
 const ASSETS=['./','./index.html','./styles.css','./client.js','./transport.js',
               './push.js','./firebase-config.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
@@ -16,6 +16,13 @@ self.addEventListener('fetch',event=>{
       if(res.ok){const saved=res.clone();caches.open(CACHE).then(cache=>cache.put('./index.html',saved)).catch(()=>{})}
       return res;
     }).catch(()=>caches.match('./index.html')));return;
+  }
+  // JS/CSS always refresh when online; retain a cached copy for offline driving.
+  if(/\\.(?:js|css)$/.test(url.pathname)){
+    event.respondWith(fetch(req,{cache:'no-store'}).then(response=>{
+      if(response.ok){const copy=response.clone();event.waitUntil(caches.open(CACHE).then(c=>c.put(req,copy)))}
+      return response;
+    }).catch(()=>caches.match(req)));return;
   }
   event.respondWith(caches.match(req).then(cached=>cached||fetch(req)));
 });
