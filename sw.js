@@ -1,7 +1,8 @@
 /* DriverFlow offline-first application shell. Never cache Google Apps Script responses. */
 const CACHE='driverflow-shell-2026-10-v2.3-refresh';
 const ASSETS=['./','./index.html','./styles.css','./client.js','./transport.js',
-              './push.js','./firebase-config.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+              './push.js','./firebase-config.js','./client.js?v=2.3.0','./styles.css?v=2.3.0',
+              './transport.js?v=2.3.0','./push.js?v=2.3.0','./firebase-config.js?v=2.3.0','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });
