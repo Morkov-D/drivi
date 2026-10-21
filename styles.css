@@ -247,3 +247,6 @@ body.modal-open{overflow:hidden}
 .profile-tools{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}
 .profile-tools button:last-child{grid-column:span 2}
 @media(max-width:380px){.profile-tools{grid-template-columns:1fr}.profile-tools button:last-child{grid-column:span 1}}
+
+/* DriverFlow planned execution date and author */
+.task-schedule{display:flex;align-items:center;gap:7px 14px;flex-wrap:wrap;margin:10px 0 4px;color:#66758d;font-size:12px;line-height:1.5}.task-schedule b{color:#29354a}.task-plan-date{display:inline-flex;background:#eff4ff;color:#2855a9;border-radius:8px;padding:5px 8px;font-weight:800}.task-card .task-schedule{overflow-wrap:anywhere}
